@@ -26,17 +26,16 @@ class Strategy:
   
 
   def parse_symbol(self, symbol: str) -> dict:
-        year = int("20" + symbol[6:8])
-        month = int(symbol[8:10])
-        day = int(symbol[10:12])
-        option_type = symbol[12]
-        strike_price = symbol[14:18]
-
-        return {
-            "expiration": datetime(year, month, day),
-            "option_type": option_type,
-            "strike_price": strike_price
-        }
+    numbers : str = symbol.split(" ")[3]
+    date : str = numbers[:6]
+    date_yymmdd : str = "20" + date[0:2] + "-" + date[2:4] + "-" + date[4:6]
+    action : str = numbers[6]
+    strike_price : float = float(numbers[7:]) / 1000
+    return {
+        "expiration": datetime.strptime(date_yymmdd, "%Y-%m-%d"),
+        "option_type": action,
+        "strike_price": strike_price,
+    }
 
   def generate_orders(self) -> pd.DataFrame:
     orders = []
