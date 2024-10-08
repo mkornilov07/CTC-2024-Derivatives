@@ -23,7 +23,6 @@ class Strategy:
 
     self.underlying = pd.read_csv("data/underlying_data_hour.csv")
     self.underlying.columns = self.underlying.columns.str.lower()
-  
 
   def parse_symbol(self, symbol: str) -> dict:
     numbers : str = symbol.split(" ")[3]
@@ -36,7 +35,8 @@ class Strategy:
         "option_type": action,
         "strike_price": strike_price,
     }
-
+  def getOptions(self):
+    return self.options
   def generate_orders(self) -> pd.DataFrame:
     orders = []
     num_orders = 100
