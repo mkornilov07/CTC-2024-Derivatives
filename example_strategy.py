@@ -20,12 +20,12 @@ class Strategy:
     self.options = pd.concat([self.options, parsed_df], axis=1)
   
     self.options["day"] = pd.to_datetime(self.options["ts_recv"].apply(lambda x: x.split("T")[0]))
-    self.options["ts_recv"] = pd.to_datetime(self.options["ts_recv"])
+    self.options["date"] = pd.to_datetime(self.options["ts_recv"])
 
     self.underlying = pd.read_csv("data/underlying_data_hour.csv")
     self.underlying.columns = self.underlying.columns.str.lower()
-    self.underlying.date = pd.to_datetime(self.underlying.date)
-
+    self.underlying.index = pd.to_datetime(self.underlying.date)
+    # self.underlying.drop(columns="date", inplace=True)
   def parse_symbol(self, symbol: str) -> dict:
     numbers : str = symbol.split(" ")[3]
     date : str = numbers[:6]
