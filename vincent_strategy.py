@@ -56,50 +56,58 @@ class Strategy:
         strike_price                             5150.0
         day                                  2024-03-14
         '''
-        print("vincent v0.0.43")
+        print("vincent v0.0.53")
     
         chosen_id = None
         p = 0
-        for drow in self.options.iterrows(): # change to itertuples
-            row = drow[1]
+        for row in self.options.itertuples():
             if not chosen_id:
-                chosen_id = row["instrument_id"]
-            if row["instrument_id"] != chosen_id:
+                chosen_id = row.instrument_id
+            if row.instrument_id != chosen_id:
                 continue
 
             p += 1
-            if p > 2:
+            if p > 1:
                 break
         
-            action = "B" if p==1 else "S"
+            action = "S" if p%2==0 else "B"
 
-            if self.parse_symbol(row["symbol"])["expiration"] > datetime.strptime("2024-03-30", "%Y-%m-%d"):
+            #if self.parse_symbol(row.symbol)["expiration"] < datetime.strptime("2024-03-30", "%Y-%m-%d"):
                 # option expires past the end date
-                continue
+                #continue
             #else:
                 # print(self.parse_symbol(row["symbol"]))
                 # print(row["day"])
                 # print()
             #    pass
 
-            order_size = 1   
-            #if action == "B":
-            #    order_size = 1 # random.randint(1, int(row["ask_sz_00"]))
-            #else:
-            #    order_size = 1 # random.randint(1, int(row["bid_sz_00"]))
+            if action == "B":
+                order_size = 1 # random.randint(1, int(row.ask_sz_00))
+            else:
+                order_size = 1 # random.randint(1, int(row.bid_sz_00))
 
-            assert order_size <= int(row["ask_sz_00"]) or order_size <= int(row["bid_sz_00"])
+            assert order_size <= int(row.ask_sz_00) or order_size <= int(row.bid_sz_00)
             
             order = {
-                "datetime" : row["ts_recv"],
-                "option_symbol" : row["symbol"],
+                "datetime" : row.ts_recv,
+                "option_symbol" : row.symbol,
                 "action" : action,
                 "order_size" : order_size
             }
             orders.append(order)
 
-            print(order)
-            #print(row["ask_px_00"])
+            
+            order = {
+                "datetime" : row.ts_recv,
+                "option_symbol" : row.symbol,
+                "action" : {"B": "S", "S": "B"}[action],
+                "order_size" : order_size
+            }
+            orders.append(order)
+
+            [print(order) for order in orders]
+            print("Bid: ", row.bid_px_00)
+            print("Ask: ", row.ask_px_00)
             print()
         
         return pd.DataFrame(orders)
