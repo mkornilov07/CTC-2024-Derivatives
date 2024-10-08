@@ -19,10 +19,12 @@ class Strategy:
       
     self.options = pd.concat([self.options, parsed_df], axis=1)
   
-    self.options["day"] = self.options["ts_recv"].apply(lambda x: x.split("T")[0])
+    self.options["day"] = pd.to_datetime(self.options["ts_recv"].apply(lambda x: x.split("T")[0]))
+    self.options["ts_recv"] = pd.to_datetime(self.options["ts_recv"])
 
     self.underlying = pd.read_csv("data/underlying_data_hour.csv")
     self.underlying.columns = self.underlying.columns.str.lower()
+    self.underlying.date = pd.to_datetime(self.underlying.date)
 
   def parse_symbol(self, symbol: str) -> dict:
     numbers : str = symbol.split(" ")[3]
@@ -37,6 +39,8 @@ class Strategy:
     }
   def getOptions(self):
     return self.options
+  def getUnderlying(self):
+    return self.underlying
   def generate_orders(self) -> pd.DataFrame:
     orders = []
     num_orders = 100
