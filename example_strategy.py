@@ -86,7 +86,7 @@ class Strategy:
     return self.underlying
   def generate_orders(self) -> pd.DataFrame:
     orders = []
-    num_orders = 100
+    num_orders = 1000
     
     for _ in range(num_orders):
       row = self.options.sample(n=1).iloc[0]
