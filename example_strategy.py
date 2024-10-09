@@ -1,6 +1,9 @@
 import random
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
+import numpy as np
+import numpy as np
+from scipy.stats import norm
 
 class Strategy:
   
@@ -25,6 +28,15 @@ class Strategy:
     self.underlying = pd.read_csv("data/underlying_data_hour.csv")
     self.underlying.columns = self.underlying.columns.str.lower()
     self.underlying.index = pd.to_datetime(self.underlying.date)
+    print(self.underlying.index.duplicated())
+    # self.options["underlying_price"] = self.underlying.open[self.options.day.values]
+    self.options.insert(1, "underlying_price",self.underlying.open[self.options.reset_index().day.to_numpy()].to_numpy() , allow_duplicates = True)
+    self.underlying["volatility"] = self.underlying.open.pct_change().rolling(10, min_periods = 10).std() * np.sqrt(252)
+    self.options["time_to_exp_percentage"] = self.time_to_expiration()
+    print("Done with time to expiration")
+    call, put = self.black_scholes()
+    self.options["call"] = call
+    self.options["put"] = put
     # self.underlying.drop(columns="date", inplace=True)
   def parse_symbol(self, symbol: str) -> dict:
     numbers : str = symbol.split(" ")[3]
@@ -37,8 +49,39 @@ class Strategy:
         "option_type": action,
         "strike_price": strike_price,
     }
+  def black_scholes(self) -> float:
+    S = self.options["underlying_price"][self.options.day>self.start_date+timedelta(days=11)]
+    K = self.options["strike_price"][self.options.day>self.start_date+timedelta(days=11)]
+    volatility = self.underlying.volatility[self.options[self.options.day>self.start_date+timedelta(days=11)].reset_index().day.to_numpy()].to_numpy()
+    print(self.underlying.volatility)
+    print(volatility)
+    r = 0.03 #  continuously compounded risk-free interest rate (% p.a.), stated as 3%
+    q = 0. #  continuously compounded dividend yield (% p.a.), no dividend yield
+    t = self.options["time_to_exp_percentage"][self.options.day>self.start_date+timedelta(days=11)].to_numpy()
+    print("AAAAAAAAAAAAAAAAA")
+    print(S.dtype, K.dtype, volatility.dtype, t.dtype)
+    # S,K,volatility,t = S[10000:], K[10000:], volatility[10000:], t[10000:]
+    a=(np.log(S) - np.log(K))
+    b=(r - q + np.square(volatility) * 0.5)
+    print(volatility)
+    print(t)
+    d=volatility * np.sqrt(t)
+    c=np.reciprocal(d)
+    d1 = (a + t * b) * c
+    d2 = d1 - volatility * np.sqrt(t)
+    print("BBBBBBBBBBBBBBBBBB")
+    call = S * np.exp(-q * t) * norm.cdf(d1) - K * np.exp(-r * t) * norm.cdf(d2)
+    put = K * np.exp(-r * t) * norm.cdf(-d2) - S * np.exp(-q * t) * norm.cdf(d1)
+    return call, put
+
+  def time_to_expiration(self) -> float:
+        expiration = self.options["expiration"]
+        current = self.options.day
+
+        return (expiration - current).dt.days / 365.25
   def getOptions(self):
     return self.options
+  
   def getUnderlying(self):
     return self.underlying
   def generate_orders(self) -> pd.DataFrame:
