@@ -1,6 +1,6 @@
 import random
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
 
 class Strategy:
     
@@ -56,58 +56,61 @@ class Strategy:
         strike_price                             5150.0
         day                                  2024-03-14
         '''
-        print("vincent v0.0.53")
+        print("vincent v0.0.63")
     
         chosen_id = None
         p = 0
         for row in self.options.itertuples():
-            if not chosen_id:
-                chosen_id = row.instrument_id
-            if row.instrument_id != chosen_id:
-                continue
-
-            p += 1
-            if p > 1:
-                break
+            #if not chosen_id:
+            #    chosen_id = row.instrument_id
+            #if row.instrument_id != chosen_id:
+            #    continue
         
-            action = "S" if p%2==0 else "B"
+            #action = "B"
 
-            #if self.parse_symbol(row.symbol)["expiration"] < datetime.strptime("2024-03-30", "%Y-%m-%d"):
+            date = lambda dateStr: datetime.strptime(dateStr, "%Y-%m-%d")
+
+            if self.parse_symbol(row.symbol)["expiration"] > date("2024-03-30"):
                 # option expires past the end date
-                #continue
+                continue
             #else:
                 # print(self.parse_symbol(row["symbol"]))
                 # print(row["day"])
                 # print()
             #    pass
 
-            if action == "B":
-                order_size = 1 # random.randint(1, int(row.ask_sz_00))
-            else:
-                order_size = 1 # random.randint(1, int(row.bid_sz_00))
+            if row.expiration > date(row.day) + timedelta(days=4):
+                continue
 
+            p += 1
+            if p > 1:
+                break
+
+            #if action == "B":
+                #order_size = 1 # random.randint(1, int(row.ask_sz_00))
+            #else:
+                #order_size = 1 # random.randint(1, int(row.bid_sz_00))
+
+            order_size = min(int(row.ask_sz_00), int(row.bid_sz_00))
             assert order_size <= int(row.ask_sz_00) or order_size <= int(row.bid_sz_00)
             
             order = {
                 "datetime" : row.ts_recv,
                 "option_symbol" : row.symbol,
-                "action" : action,
+                "action" : "B",
                 "order_size" : order_size
             }
             orders.append(order)
+            print("  Row:", row)
+            print("Order:", order)
 
-            
             order = {
                 "datetime" : row.ts_recv,
                 "option_symbol" : row.symbol,
-                "action" : {"B": "S", "S": "B"}[action],
+                "action" : "S",
                 "order_size" : order_size
             }
             orders.append(order)
-
-            [print(order) for order in orders]
-            print("Bid: ", row.bid_px_00)
-            print("Ask: ", row.ask_px_00)
-            print()
+            print("Order:",order)
         
         return pd.DataFrame(orders)
