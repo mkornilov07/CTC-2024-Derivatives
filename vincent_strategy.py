@@ -79,8 +79,8 @@ class Strategy:
                 # print()
             #    pass
 
-            if row.expiration > date(row.day) + timedelta(days=4):
-                continue
+            #if row.expiration > date(row.day) + timedelta(days=4):
+            #    continue
 
             p += 1
             if p > 1:
