@@ -56,7 +56,7 @@ class Strategy:
         strike_price                             5150.0
         day                                  2024-03-14
         '''
-        print("vincent v0.0.65")
+        print("vincent v0.0.72")
     
         chosen_id = None
         p = 0
@@ -83,7 +83,7 @@ class Strategy:
             #    continue
 
             p += 1
-            if p > 200:
+            if p > 35:
                 break
 
             #if action == "B":
@@ -91,8 +91,8 @@ class Strategy:
             #else:
                 #order_size = 1 # random.randint(1, int(row.bid_sz_00))
 
-            order_size = 1 # min(int(row.ask_sz_00), int(row.bid_sz_00))
-            assert order_size <= int(row.ask_sz_00) or order_size <= int(row.bid_sz_00)
+            order_size = min(int(row.ask_sz_00), int(row.bid_sz_00))
+            print(int(row.ask_sz_00), int(row.bid_sz_00), order_size)
             
             order = {
                 "datetime" : row.ts_recv,
@@ -101,8 +101,8 @@ class Strategy:
                 "order_size" : order_size
             }
             orders.append(order)
-            print("  Row:", row)
-            print("Order:", order)
+            #print("  Row:", row)
+            #print("Order:", order)
 
             order = {
                 "datetime" : row.ts_recv,
@@ -111,6 +111,7 @@ class Strategy:
                 "order_size" : order_size
             }
             orders.append(order)
+            
             print("Order:",order)
         
         return pd.DataFrame(orders)
