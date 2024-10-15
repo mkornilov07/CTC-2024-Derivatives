@@ -56,11 +56,12 @@ class Strategy:
         strike_price                             5150.0
         day                                  2024-03-14
         '''
-        print("vincent v0.0.84")
+        print("vincent v0.0.93")
     
         # chosen_id = None
         seen_exps = set()
-        p = 0
+        most_recent = None
+        ct = 0
         for row in self.options.itertuples():
             #if not chosen_id:
             #    chosen_id = row.instrument_id
@@ -89,11 +90,14 @@ class Strategy:
 
             # be willing to make more trades on days where options expire
             # still can't make too many as to not go over 10 min on backtester
-            p += 1
-            if p % 111 != 0:
+            this_day = date(row.day)
+            this_time =  datetime.strptime(row.ts_recv[:-4], "%Y-%m-%dT%H:%M:%S.%f")
+            if this_day not in seen_exps and most_recent is not None and this_time - timedelta(minutes=60) < most_recent:
                 continue
-            if p % 999 != 0 and row.day not in seen_exps: 
+            ct += 1
+            if this_day in seen_exps and this_time - timedelta(seconds=15) < most_recent:
                 continue
+            most_recent = this_time
             #seen_exps.add(row.expiration)
 
             #if action == "B":
@@ -101,7 +105,7 @@ class Strategy:
             #else:
                 #order_size = 1 # random.randint(1, int(row.bid_sz_00))
 
-            order_size = min(int(row.ask_sz_00), int(5000/row.ask_px_00)) # don't spend more than 500k on one transaction
+            order_size = min(int(row.ask_sz_00), int(2500/row.ask_px_00)) # don't spend more than 250k on one transaction
             if order_size == 0:
                 continue
             print(int(row.ask_sz_00), int(row.bid_sz_00), order_size)
