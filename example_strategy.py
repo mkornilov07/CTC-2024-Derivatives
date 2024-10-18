@@ -30,9 +30,19 @@ class Strategy:
     self.underlying = pd.read_csv(underlying)
     self.underlying.columns = self.underlying.columns.str.lower()
     self.underlying.index = pd.to_datetime(self.underlying.date)
-    print(self.underlying.index.duplicated())
+    # print(self.underlying.index.duplicated())
     # self.options["underlying_price"] = self.underlying.open[self.options.day.values]
-    self.options.insert(1, "underlying_price",self.underlying.open[self.options.reset_index().day.to_numpy()].to_numpy() , allow_duplicates = True)
+    underlying_dates = self.underlying.open.reset_index()
+    underlying_dates['date'] = pd.to_datetime(underlying_dates['date'], utc=True).dt.tz_localize(None)
+    underlying_dates['date_only'] = underlying_dates['date'].dt.date.astype(str)
+    underlying_dates.drop(columns=['date'], inplace=True)  # Drop the original date column
+    underlying_dates.set_index('date_only', inplace=True)
+    self.options.insert(
+        1, 
+        "underlying_price",
+        underlying_dates.loc[self.options.reset_index().day.to_numpy(), 'open'].to_numpy(), 
+        allow_duplicates=True
+    )
     self.underlying["volatility"] = self.underlying.open.pct_change().rolling(10, min_periods = 10).std() * np.sqrt(252)
     self.options["time_to_exp_percentage"] = self.time_to_expiration()
     print("Done with time to expiration")
