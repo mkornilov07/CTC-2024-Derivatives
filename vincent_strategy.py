@@ -105,7 +105,7 @@ class Strategy:
             #else:
                 #order_size = 1 # random.randint(1, int(row.bid_sz_00))
 
-            order_size = min(int(row.ask_sz_00), int(5e3/row.ask_px_00)) # don't spend more than 500k on one transaction
+            order_size = min(int(row.ask_sz_00), int(800/row.ask_px_00)) # don't spend more than 80k on one transaction
             if order_size == 0:
                 continue
             print(int(row.ask_sz_00), int(row.bid_sz_00), order_size)
