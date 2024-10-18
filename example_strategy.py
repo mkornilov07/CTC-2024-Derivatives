@@ -7,7 +7,7 @@ from scipy.stats import norm
 
 class Strategy:
   DAYS_TO_SKIP = 10
-  def __init__(self) -> None:
+  def __init__(self, start_date, end_date, options_data = "data/cleaned_options_data.csv", underlying = "data/underlying_data_hour.csv") -> None:
     self.capital : float = 100_000_000
     self.portfolio_value : float = 0
 
@@ -16,7 +16,7 @@ class Strategy:
     self.start_date : datetime = start_date
     self.end_date : datetime = end_date
   
-    self.options : pd.DataFrame = pd.read_csv("data/cleaned_options_data.csv")
+    self.options : pd.DataFrame = pd.read_csv(options_data)
     
     parsed_data = self.options["symbol"].apply(self.parse_symbol)
 
@@ -28,7 +28,7 @@ class Strategy:
     print(f"options.day is {self.options.day.dtype}")
     
     self.options["date"] = pd.to_datetime(self.options["ts_recv"])
-    self.underlying = pd.read_csv("data/underlying_data_hour.csv")
+    self.underlying = pd.read_csv(underlying)
     self.underlying.index = pd.to_datetime(self.underlying["date"].str.slice(stop=-6))
     self.underlying.columns = self.underlying.columns.str.lower()
     self.underlying_price_daily = self.underlying.open.resample("B").mean()
