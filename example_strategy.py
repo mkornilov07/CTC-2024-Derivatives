@@ -13,6 +13,8 @@ class Strategy:
 
     self.start_date : datetime = start_date
     self.end_date : datetime = end_date
+    self.start_date : datetime = start_date
+    self.end_date : datetime = end_date
   
     self.options : pd.DataFrame = pd.read_csv("data/cleaned_options_data.csv")
     
@@ -89,6 +91,7 @@ class Strategy:
   def generate_orders(self) -> pd.DataFrame:
     orders = []
     num_orders = 200
+    num_orders = 200
     
     for _ in range(num_orders):
       row = self.options.sample(n=1).iloc[0]
@@ -97,7 +100,11 @@ class Strategy:
       if action == "B":
         if int(row["ask_sz_00"]) > 1:
           order_size = random.randint(1, int(row["ask_sz_00"]))
+        if int(row["ask_sz_00"]) > 1:
+          order_size = random.randint(1, int(row["ask_sz_00"]))
       else:
+        if int(row["bid_sz_00"]) > 1:
+          order_size = random.randint(1, int(row["bid_sz_00"]))
         if int(row["bid_sz_00"]) > 1:
           order_size = random.randint(1, int(row["bid_sz_00"]))
       
