@@ -123,13 +123,24 @@ class Strategy:
         strike_price                             5150.0
         day                                  2024-03-14
         '''
-        print("vincent v1.0.0")
+        print("vincent v1.0.2")
+        max_investment = 5e4
+        min_buy_edge = 30
+        min_ask_edge = 50
+        min_neut_edge = 0
     
-        # chosen_id = None
+        seen = set()
         seen_exps = set()
         most_recent = None
         ct = 0
+        p = 0
         for row in self.options.itertuples():
+            p += 1
+            if p % 65536 == 0:
+                 print("iter: ", p) 
+                 print(int(row.ask_sz_00), int(row.bid_sz_00))
+
+            # Single-Instrument Strat
             #if not chosen_id:
             #    chosen_id = row.instrument_id
             #if row.instrument_id != chosen_id:
@@ -142,7 +153,7 @@ class Strategy:
             if self.parse_symbol(row.symbol)["expiration"] > date("2024-03-30"):
                 # option expires past the end date
                 continue
-            seen_exps.add(self.parse_symbol(row.symbol)["expiration"])
+
             #else:
                 # print(self.parse_symbol(row["symbol"]))
                 # print(row["day"])
@@ -159,9 +170,8 @@ class Strategy:
             # still can't make too many as to not go over 10 min on backtester
             # this_day = date(row.day)
             this_time =  datetime.strptime(row.ts_recv[:-4], "%Y-%m-%dT%H:%M:%S.%f")
-            if most_recent is not None and this_time - timedelta(minutes=180) < most_recent:
+            if most_recent is not None and this_time - timedelta(minutes=5) < most_recent:
                 continue
-            ct += 1
             #if this_day in seen_exps and this_time - timedelta(seconds=15) < most_recent:
             #    continue
             most_recent = this_time
@@ -172,31 +182,75 @@ class Strategy:
             #else:
                 #order_size = 1 # random.randint(1, int(row.bid_sz_00))
 
-            order_size = min(int(row.ask_sz_00), int(800/row.ask_px_00)) # don't spend more than 80k on one transaction
+            order_size = min(int(row.ask_sz_00), int(row.bid_sz_00), 100) # don't spend more than 80k on one transaction
             if order_size == 0:
                 continue
-            print(int(row.ask_sz_00), int(row.bid_sz_00), order_size)
+
+            
+           
 
             # ACTUAL BLACK SCHOLES STUFF
-            print("Theo: ", row.theo)
+            buy_edge = -(row.theo - row.ask_px_00) 
+            ask_edge = -(row.bid_px_00 - row.theo) 
+
+            action = None
+            if buy_edge > min_buy_edge:
+                 action = "B"
+            elif ask_edge > min_ask_edge:
+                 action = "S"
+                 
+            if buy_edge == float("nan") or ask_edge == float("nan"):
+                 continue
+
             
-            order = {
+            
+            if action is not None:
+                ct += 1
+                order = {
+                "datetime" : row.ts_recv,
+                "option_symbol" : row.symbol,
+                "action" : action,
+                "order_size" : order_size
+                }
+
+                #net_size = order_size * {"B": 1, "S": -1}[action]
+                #if row.instrument_id not in exposures:
+                #    exposures[row.instrument_id] = net_size
+                #else:
+                #    exposures[row.instrument_id] += net_size
+                
+                print("Theo: ", row.theo)
+                print("Order:", ct, order)
+                print("Buy/Ask edge:", buy_edge, ask_edge)
+                orders.append(order)
+
+            '''
+            elif row.instrument_id in exposures and exposures[row.instrument_id] > 0 and \
+                ask_edge > min_neut_edge:
+                ct += 1
+                order = {
                 "datetime" : row.ts_recv,
                 "option_symbol" : row.symbol,
                 "action" : "S",
-                "order_size" : order_size
-            }
-            orders.append(order)
-
-            order = {
+                "order_size" : min(order_size, exposures[row.instrument_id])
+                }
+                exposures[row.instrument_id] -= min(order_size, exposures[row.instrument_id])
+                print("Theo: ", row.theo)
+                print("Order:", ct, order)
+                orders.append(order)
+            elif row.instrument_id in exposures and exposures[row.instrument_id] < 0 and buy_edge > min_neut_edge:
+                ct += 1
+                order = {
                 "datetime" : row.ts_recv,
                 "option_symbol" : row.symbol,
-                "action" : "B",
-                "order_size" : order_size
-            }
-            orders.append(order)
-
-            #print("  Row:", row)
-            print("Order:", order)
-        
+                "action" : "S",
+                "order_size" : min(order_size, exposures[row.instrument_id])
+                }
+                exposures[row.instrument_id] += min(order_size, exposures[row.instrument_id])
+                print("Theo: ", row.theo)
+                print("Order:", ct, order)
+                orders.append(order)
+            '''
+                 
+        print("Total order count: ", len(orders))
         return pd.DataFrame(orders)
