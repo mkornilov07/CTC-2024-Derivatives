@@ -56,10 +56,12 @@ class Strategy:
         strike_price                             5150.0
         day                                  2024-03-14
         '''
-        print("vincent v0.0.63")
+        print("vincent v0.0.99")
     
-        chosen_id = None
-        p = 0
+        # chosen_id = None
+        seen_exps = set()
+        most_recent = None
+        ct = 0
         for row in self.options.itertuples():
             #if not chosen_id:
             #    chosen_id = row.instrument_id
@@ -73,6 +75,7 @@ class Strategy:
             if self.parse_symbol(row.symbol)["expiration"] > date("2024-03-30"):
                 # option expires past the end date
                 continue
+            seen_exps.add(self.parse_symbol(row.symbol)["expiration"])
             #else:
                 # print(self.parse_symbol(row["symbol"]))
                 # print(row["day"])
@@ -82,28 +85,31 @@ class Strategy:
             #if row.expiration > date(row.day) + timedelta(days=4):
             #    continue
 
-            p += 1
-            if p > 1:
-                break
+            #if row.expiration in seen_exps:
+            #    continue
+
+            # be willing to make more trades on days where options expire
+            # still can't make too many as to not go over 10 min on backtester
+            this_day = date(row.day)
+            this_time =  datetime.strptime(row.ts_recv[:-4], "%Y-%m-%dT%H:%M:%S.%f")
+            if most_recent is not None and this_time - timedelta(minutes=15) < most_recent:
+                continue
+            ct += 1
+            #if this_day in seen_exps and this_time - timedelta(seconds=15) < most_recent:
+            #    continue
+            most_recent = this_time
+            #seen_exps.add(row.expiration)
 
             #if action == "B":
                 #order_size = 1 # random.randint(1, int(row.ask_sz_00))
             #else:
                 #order_size = 1 # random.randint(1, int(row.bid_sz_00))
 
-            order_size = min(int(row.ask_sz_00), int(row.bid_sz_00))
-            assert order_size <= int(row.ask_sz_00) or order_size <= int(row.bid_sz_00)
+            order_size = min(int(row.ask_sz_00), int(5e3/row.ask_px_00)) # don't spend more than 500k on one transaction
+            if order_size == 0:
+                continue
+            print(int(row.ask_sz_00), int(row.bid_sz_00), order_size)
             
-            order = {
-                "datetime" : row.ts_recv,
-                "option_symbol" : row.symbol,
-                "action" : "B",
-                "order_size" : order_size
-            }
-            orders.append(order)
-            print("  Row:", row)
-            print("Order:", order)
-
             order = {
                 "datetime" : row.ts_recv,
                 "option_symbol" : row.symbol,
@@ -111,6 +117,16 @@ class Strategy:
                 "order_size" : order_size
             }
             orders.append(order)
-            print("Order:",order)
+
+            order = {
+                "datetime" : row.ts_recv,
+                "option_symbol" : row.symbol,
+                "action" : "B",
+                "order_size" : order_size
+            }
+            orders.append(order)
+
+            #print("  Row:", row)
+            print("Order:", order)
         
         return pd.DataFrame(orders)

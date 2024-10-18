@@ -6,38 +6,41 @@ import numpy as np
 from scipy.stats import norm
 
 class Strategy:
-  
+  DAYS_TO_SKIP = 10
   def __init__(self) -> None:
     self.capital : float = 100_000_000
     self.portfolio_value : float = 0
 
-    self.start_date : datetime = datetime(2024, 1, 1)
-    self.end_date : datetime = datetime(2024, 3, 30)
+    self.start_date : datetime = start_date
+    self.end_date : datetime = end_date
   
     self.options : pd.DataFrame = pd.read_csv("data/cleaned_options_data.csv")
     
     parsed_data = self.options["symbol"].apply(self.parse_symbol)
 
     parsed_df = pd.DataFrame(parsed_data.tolist())
-      
+    
     self.options = pd.concat([self.options, parsed_df], axis=1)
   
     self.options["day"] = pd.to_datetime(self.options["ts_recv"].apply(lambda x: x.split("T")[0]))
+    print(f"options.day is {self.options.day.dtype}")
+    
     self.options["date"] = pd.to_datetime(self.options["ts_recv"])
-
     self.underlying = pd.read_csv("data/underlying_data_hour.csv")
+    self.underlying.index = pd.to_datetime(self.underlying["date"].str.slice(stop=-6))
     self.underlying.columns = self.underlying.columns.str.lower()
-    self.underlying.index = pd.to_datetime(self.underlying.date)
-    print(self.underlying.index.duplicated())
-    # self.options["underlying_price"] = self.underlying.open[self.options.day.values]
-    self.options.insert(1, "underlying_price",self.underlying.open[self.options.reset_index().day.to_numpy()].to_numpy() , allow_duplicates = True)
-    self.underlying["volatility"] = self.underlying.open.pct_change().rolling(10, min_periods = 10).std() * np.sqrt(252)
+    self.underlying_price_daily = self.underlying.open.resample("B").mean()
+    self.options = self.options.merge(self.underlying_price_daily, left_on = "day", right_index = True)
+    self.options.rename(columns = {"open" : "underlying_price"}, inplace=True)
+
+    self.vol_daily = self.underlying_price_daily.pct_change().rolling(self.DAYS_TO_SKIP, min_periods = self.DAYS_TO_SKIP).std() * np.sqrt(252)
     self.options["time_to_exp_percentage"] = self.time_to_expiration()
     print("Done with time to expiration")
     call, put = self.black_scholes()
     self.options["call"] = call
     self.options["put"] = put
-    # self.underlying.drop(columns="date", inplace=True)
+    self.options["theo"] = self.options.call.where(self.options.option_type == "C", self.options.put)
+    self.underlying.drop(columns="date", inplace=True)
   def parse_symbol(self, symbol: str) -> dict:
     numbers : str = symbol.split(" ")[3]
     date : str = numbers[:6]
@@ -50,14 +53,13 @@ class Strategy:
         "strike_price": strike_price,
     }
   def black_scholes(self) -> float:
-    S = self.options["underlying_price"][self.options.day>self.start_date+timedelta(days=11)]
-    K = self.options["strike_price"][self.options.day>self.start_date+timedelta(days=11)]
-    volatility = self.underlying.volatility[self.options[self.options.day>self.start_date+timedelta(days=11)].reset_index().day.to_numpy()].to_numpy()
-    print(self.underlying.volatility)
+    S = self.options["underlying_price"][self.options.day>self.start_date+timedelta(days=self.DAYS_TO_SKIP+2)]
+    K = self.options["strike_price"][self.options.day>self.start_date+timedelta(days=self.DAYS_TO_SKIP+2)]
+    volatility = self.vol_daily[self.options[self.options.day>self.start_date+timedelta(days=self.DAYS_TO_SKIP+2)].reset_index().day.to_numpy()].to_numpy()
     print(volatility)
     r = 0.03 #  continuously compounded risk-free interest rate (% p.a.), stated as 3%
     q = 0. #  continuously compounded dividend yield (% p.a.), no dividend yield
-    t = self.options["time_to_exp_percentage"][self.options.day>self.start_date+timedelta(days=11)].to_numpy()
+    t = self.options["time_to_exp_percentage"][self.options.day>self.start_date+timedelta(days=self.DAYS_TO_SKIP+2)].to_numpy()
     print("AAAAAAAAAAAAAAAAA")
     print(S.dtype, K.dtype, volatility.dtype, t.dtype)
     # S,K,volatility,t = S[10000:], K[10000:], volatility[10000:], t[10000:]
@@ -86,18 +88,18 @@ class Strategy:
     return self.underlying
   def generate_orders(self) -> pd.DataFrame:
     orders = []
-    num_orders = 1000
+    num_orders = 200
     
     for _ in range(num_orders):
       row = self.options.sample(n=1).iloc[0]
       action = random.choice(["B", "S"])
       
       if action == "B":
-        order_size = random.randint(1, int(row["ask_sz_00"]))
+        if int(row["ask_sz_00"]) > 1:
+          order_size = random.randint(1, int(row["ask_sz_00"]))
       else:
-        order_size = random.randint(1, int(row["bid_sz_00"]))
-
-      assert order_size <= int(row["ask_sz_00"]) or order_size <= int(row["bid_sz_00"])
+        if int(row["bid_sz_00"]) > 1:
+          order_size = random.randint(1, int(row["bid_sz_00"]))
       
       order = {
         "datetime" : row["ts_recv"],
